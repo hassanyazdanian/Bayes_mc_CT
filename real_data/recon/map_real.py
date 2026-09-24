@@ -2,7 +2,7 @@
 MAP reconstruction (single-channel, for tuning; joint TV/JTV, for the main
 run) on real Talbot-Lau data.
 
-Differences from the synthetic recon/map_tv_jtv.py, both deliberate:
+Differences from the synthetic common/map_tv_jtv.py, both deliberate:
   - Priors are evaluated on the *normalized* field z = x / field_scale, not
     the physical field directly. Synthetic map_tv_jtv.py evaluates on the
     physical field specifically to stay coincident with its own already-
@@ -14,7 +14,7 @@ Differences from the synthetic recon/map_tv_jtv.py, both deliberate:
   - Likelihood uses T/DPC/D (not T/P/D): the real-data reference script's
     validated choice for this dataset, kept as-is.
 
-Reuses tv_prior/joint_tv_prior/l2_amplitude_prior from recon/map_tv_jtv.py
+Reuses tv_prior/joint_tv_prior/l2_amplitude_prior from common/map_tv_jtv.py
 and the mask/vec utilities from common/scenario_utils.py -- same math, just
 called on normalized z here instead of the physical field.
 """
@@ -28,24 +28,12 @@ import numpy as np
 import torch
 from torch.optim import LBFGS
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-COMMON_DIR = BASE_DIR / "common"
-def _recon_dir(base: Path) -> Path:
-    """Locate the shared prior/metric module (map_tv_jtv.py).
-
-    It lived in <project>/recon/ before the synthetic pipeline was moved into
-    Synthetic_data/; accept either layout so this file works in both.
-    """
-    for candidate in (base / "recon", base / "Synthetic_data" / "recon"):
-        if (candidate / "map_tv_jtv.py").exists():
-            return candidate
-    return base / "recon"
-
-
-RECON_DIR = _recon_dir(BASE_DIR)
-for p in (COMMON_DIR, RECON_DIR):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from TLI_2D_forward import dpc_from_phase_sino, radon_fanbeam  # noqa: E402
 from scenario_utils import img_to_vec, make_reconstruction_mask, vec_to_img  # noqa: E402
@@ -67,7 +55,7 @@ def make_direct_predict(projector: radon_fanbeam) -> Callable[[torch.Tensor], to
 
 # -----------------------------------------------------------------------------
 # Single-channel optimizer (own dedicated LBFGS instance -- avoids the
-# cross-channel L-BFGS coupling artifact documented in recon/map_tv_jtv.py)
+# cross-channel L-BFGS coupling artifact documented in common/map_tv_jtv.py)
 # -----------------------------------------------------------------------------
 
 def reconstruct_single_channel_real(

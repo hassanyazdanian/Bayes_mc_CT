@@ -38,19 +38,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 import data_utils as du
 from map_real import reconstruct_map_real
 from cv_alpha_real import OUT_DIR, TV_BETA, LAMBDA0, N_ITER
 from cv_alpha_real_joint import JOINT_SWEEP
 
-RECON_DIR = Path(__file__).resolve().parent.parent / "recon"
-if str(RECON_DIR) not in sys.path:
-    sys.path.insert(0, str(RECON_DIR))
 from map_tv_jtv import compute_metrics  # noqa: E402
 
-COMMON_DIR = Path(__file__).resolve().parent.parent / "common"
-if str(COMMON_DIR) not in sys.path:
-    sys.path.insert(0, str(COMMON_DIR))
 from scenario_utils import make_sparse_angle_indices  # noqa: E402
 
 N_SPARSE_ANGLES = 30  # matches run_scenarios.py

@@ -25,29 +25,35 @@ CPU, but posterior sampling is impractically slow without a GPU (see
 ## Layout
 
 ```
-common/            Physics, shared by both studies
+common/            Physics and shared numerics, used by both studies
   TLI_2D_forward.py    Talbot-Lau forward model and fan-beam projector
   phase_stepping.py    FFT-based phase-stepping retrieval (T, DPC, D, P)
   fanbeam_astra.py     ASTRA fan-beam FBP baseline
   scenario_utils.py    Angle/step subsetting, noise injection, support mask
+  map_tv_jtv.py        MAP solver with TV and joint-TV priors
+  posterior.py         Sample loading and posterior mean/std reduction
 
-Synthetic_data/    Phantom study (ground truth available)
+synthetic_data/    Phantom study (ground truth available)
   phantoms.py, create_data.py    Phantom definition and data generation
-  recon/                         MAP reconstruction, parameter tuning, figures
-  uq/                            NUTS sampling, calibration, figures
+  recon/               run_scenarios.py, tune_alpha*.py, sweep_tv_beta.py,
+                       fig_map_comparison.py
+  uq/                  nuts_synthetic.py, post_process_nuts.py,
+                       uq_calibration.py, diagnose_convergence.py,
+                       fig_uq_comparison.py
 
 real_data/         Experimental Talbot-Lau study
   data_utils.py        Loading, retrieval, geometry, noise estimation
-  map_real.py          MAP reconstruction (TV and joint-TV)
-  nuts_real.py         Posterior sampling
-  run_scenarios.py     FBP / TV / JTV across the four scenarios
-  cv_alpha_real*.py    Held-out-angle cross-validation for the prior weights
-  uq_summary.py        Per-scenario ESS, R-hat and posterior width tables
+  recon/               map_real.py, run_scenarios.py, cv_alpha_real*.py,
+                       sweep_tv_beta_lambda0.py, fig_map_comparison.py
+  uq/                  nuts_real.py, post_process_real.py, uq_summary.py,
+                       diagnose_convergence.py, fig_uq_comparison.py
 
 forward_validate/  Round-trip check of the forward model against measurement
 ```
 
 Each study writes to its own `obs/` directory, which is not tracked.
+Scripts locate `common/` and their own study directory relative to their
+own path, so they can be run from anywhere.
 
 ## Data
 
@@ -55,7 +61,7 @@ Each study writes to its own `obs/` directory, which is not tracked.
 projection angles × 10 phase steps × 843 detector pixels, as `I_meas_central.npy`
 (sample) and `I_ref_central.npy` (flat field), with `angles.npy` and `steps.npy`.
 These are the only inputs that cannot be regenerated. Synthetic data is built by
-`Synthetic_data/create_data.py`.
+`synthetic_data/create_data.py`.
 
 ## Reproducing the results
 
@@ -64,23 +70,23 @@ reconstructed at 256² with a nearest-neighbour projector, so the reconstruction
 never inverts the operator that generated the data.
 
 ```bash
-python Synthetic_data/create_data.py
-python Synthetic_data/recon/sweep_tv_beta_synthetic.py --stage alpha_beta
-python Synthetic_data/recon/tune_alpha.py
-python Synthetic_data/recon/run_scenarios.py
-python Synthetic_data/uq/nuts_synthetic.py --scenario full --alpha_joint 29.55
-python Synthetic_data/uq/uq_calibration.py
+python synthetic_data/create_data.py
+python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta
+python synthetic_data/recon/tune_alpha.py
+python synthetic_data/recon/run_scenarios.py
+python synthetic_data/uq/nuts_synthetic.py --scenario full --alpha_joint 29.55
+python synthetic_data/uq/uq_calibration.py
 ```
 
 **Experimental study.**
 
 ```bash
-python real_data/cv_alpha_real.py          # per-channel prior weights
-python real_data/cv_alpha_real_joint.py    # joint-prior weight
-python real_data/run_scenarios.py          # FBP / TV / JTV, four scenarios
-python real_data/nuts_real.py --scenario full --alpha_joint 0    # TV
-python real_data/nuts_real.py --scenario full                    # joint TV
-python real_data/uq_summary.py
+python real_data/recon/cv_alpha_real.py          # per-channel prior weights
+python real_data/recon/cv_alpha_real_joint.py    # joint-prior weight
+python real_data/recon/run_scenarios.py          # FBP / TV / JTV, four scenarios
+python real_data/uq/nuts_real.py --scenario full --alpha_joint 0    # TV
+python real_data/uq/nuts_real.py --scenario full                    # joint TV
+python real_data/uq/uq_summary.py
 ```
 
 `--scenario` takes `full`, `sparse_angle`, `sparse_step` or `combined`.
@@ -91,7 +97,7 @@ Every regularization parameter can be overridden on the command line
 **Forward-model validation.**
 
 ```bash
-python forward_validate/run_validate_TLI_forward_vs_real.py
+python forward_validate/run_validate.py
 ```
 
 ## Noise model

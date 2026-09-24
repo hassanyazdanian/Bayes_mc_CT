@@ -1,6 +1,6 @@
 """
 NUTS posterior sampling for synthetic (mu, delta, eps), on the same smoothed
-joint-TV posterior used for the MAP pipeline (recon/map_tv_jtv.py) and the
+joint-TV posterior used for the MAP pipeline (common/map_tv_jtv.py) and the
 four limited-data scenarios (recon/run_scenarios.py).
 
 Adapted from real_data/TV/Sampling_joint_TV_sparse_real_data.py. Differences
@@ -40,7 +40,7 @@ from that reference, and why:
     conditioning.
 
   - MAP initialization and field scales come from running reconstruct_map
-    in-process (recon/map_tv_jtv.py) rather than loading a saved MAP .h5 --
+    in-process (common/map_tv_jtv.py) rather than loading a saved MAP .h5 --
     there is no separate saved MAP artifact per synthetic scenario to load.
 
   - --alpha_joint lets this script sample the TV-only posterior (alpha_joint=0)

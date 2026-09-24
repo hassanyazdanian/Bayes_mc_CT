@@ -29,12 +29,12 @@ information while z is the one that cannot be read off the other panels.
 Mean and std use one display range per channel, shared by all scenarios and
 priors so that panels are comparable; z uses a fixed logarithmic diverging
 scale centred on 1. Each image has its own compact horizontal colorbar
-underneath, following the style of Map_comparison_synthetic_Fig.py.
+underneath, following the style of fig_map_comparison.py.
 
 Expected directory structure
 ----------------------------
 Assuming this script lives in the project root/code directory similarly to
-Map_comparison_synthetic_Fig.py:
+fig_map_comparison.py:
 
     BASE_DIR/
         obs/scenarios/<PHANTOM_NAME>/full/recon_arrays.npz
@@ -43,9 +43,9 @@ Map_comparison_synthetic_Fig.py:
 
 Usage
 -----
-    python UQ_comparison_synthetic_Fig.py
+    python fig_uq_comparison.py
 or
-    python UQ_comparison_synthetic_Fig.py --phantom multicontrast
+    python fig_uq_comparison.py --phantom multicontrast
 
 Output
 ------
@@ -65,7 +65,6 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import LogNorm, Normalize
-# from matplotlib.ticker import FuncFormatter
 from matplotlib.ticker import FormatStrFormatter
 
 PHANTOM_NAME = "multicontrast"
@@ -120,19 +119,6 @@ plt.rcParams.update({
     "xtick.labelsize": 8,
     "ytick.labelsize": 8,
 })
-
-
-# def tick_formatter() -> FuncFormatter:
-#     def _fmt(x, pos):
-#         ax = abs(x)
-#         if ax == 0:
-#             return "0"
-#         if ax >= 1:
-#             return f"{x:.2f}"
-#         if ax >= 1e-2:
-#             return f"{x:.2f}"
-#         return f"{x:.1e}"
-#     return FuncFormatter(_fmt)
 
 
 def robust_vmax(arrays: List[np.ndarray], q: float = 99.5) -> float:

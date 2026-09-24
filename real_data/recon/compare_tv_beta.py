@@ -37,27 +37,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 from nuts_real import SCENARIOS, setup_problem
 
-def _recon_dir(base: Path) -> Path:
-    """Locate the shared prior/metric module (map_tv_jtv.py).
 
-    It lived in <project>/recon/ before the synthetic pipeline was moved into
-    Synthetic_data/; accept either layout so this file works in both.
-    """
-    for candidate in (base / "recon", base / "Synthetic_data" / "recon"):
-        if (candidate / "map_tv_jtv.py").exists():
-            return candidate
-    return base / "recon"
-
-
-RECON_DIR = _recon_dir(Path(__file__).resolve().parent.parent)
-if str(RECON_DIR) not in sys.path:
-    sys.path.insert(0, str(RECON_DIR))
 from map_tv_jtv import compute_metrics  # noqa: E402
 
 CHANNELS = ["mu", "delta", "eps"]
-OUT_DIR = Path(__file__).resolve().parent / "obs" / "uq" / "tv_beta_check"
+OUT_DIR = BASE_DIR / "obs" / "uq" / "tv_beta_check"
 
 
 def main():

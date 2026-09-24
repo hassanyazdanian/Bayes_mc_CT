@@ -22,6 +22,13 @@ import matplotlib.pyplot as plt
 
 from pyro.ops.stats import effective_sample_size, gelman_rubin
 
+import sys
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 CHANNELS = [("mu", r"$\mu$"), ("delta", r"$\delta$"), ("eps", r"$\epsilon$")]
 
 # pyro's effective_sample_size (_cummin) allocates an intermediate that

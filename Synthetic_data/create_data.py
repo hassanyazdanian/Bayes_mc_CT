@@ -28,8 +28,9 @@ import torch
 # -----------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
 COMMON_DIR = BASE_DIR.parent / "common"
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+for _p in (COMMON_DIR, BASE_DIR):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from phantoms import (  # noqa: E402
     MULTICONTRAST_ANNOTATIONS,

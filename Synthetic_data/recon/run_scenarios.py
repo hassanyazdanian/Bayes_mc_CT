@@ -53,7 +53,7 @@ CHANNELS = [("mu", r"$\mu$"), ("delta", r"$\delta$"), ("eps", r"$\epsilon$")]
 # Fixed regularization across all scenarios, tuned against ground truth
 # (T/DPC/D likelihood, 512^2 bilinear simulation, 256^2 nearest
 # reconstruction, noise 1/4.7/4.8 %, N_ITER=1000):
-#  - tv_beta (recon/sweep_tv_beta_synthetic.py --stage alpha_beta, full
+#  - tv_beta (recon/sweep_tv_beta.py --stage alpha_beta, full
 #    scan): beta in [1e-4, 1e-3] ties on RE (worst channel within 3.4% of its
 #    best); beta=3e-4 taken -- 1e-3 leaves visible background texture in eps,
 #    and 3e-4 is 3-10x less stiff than 1e-4.
@@ -67,7 +67,7 @@ CHANNELS = [("mu", r"$\mu$"), ("delta", r"$\delta$"), ("eps", r"$\epsilon$")]
 #    delta +0.24% RE and 5 already +1.4% (the full scan tolerates up to 10).
 #    The alpha and alpha_joint sweeps ran at lambda0=5; the difference is
 #    below their resolution.
-#  - alpha_joint (tune_alpha_joint_reoptimal.py --scenario <each>): minimizes
+#  - alpha_joint (tune_alpha_joint.py --scenario <each>): minimizes
 #    the summed per-channel RE change vs TV averaged over the four scenarios
 #    (-0.77%; every scenario improves, worst -0.23%); the gain is mostly eps
 #    (RE -1.3%, SSIM +0.008..0.013). 58.17 and above degrade the sparse

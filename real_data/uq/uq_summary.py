@@ -39,10 +39,11 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
-HERE = Path(__file__).resolve().parent
-for p in (HERE, HERE.parent / "common"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 import data_utils as du  # noqa: E402
 from diagnose_convergence import chunked_ess_rhat  # noqa: E402
@@ -111,7 +112,7 @@ def posterior_mean_std(stat: Dict, meta: Dict) -> Dict[str, np.ndarray]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--uq_root", type=str, default=str(HERE / "obs" / "uq"))
+    ap.add_argument("--uq_root", type=str, default=str(BASE_DIR / "obs" / "uq"))
     ap.add_argument("--scenarios", nargs="+", default=SCENARIOS)
     ap.add_argument("--priors", nargs="+", default=PRIORS)
     ap.add_argument("--skip_rho", action="store_true", help="Skip the posterior-mean data residual.")

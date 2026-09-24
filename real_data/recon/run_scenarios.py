@@ -11,7 +11,7 @@ data:
 Regularization (alpha_mu/delta/eps/joint) is held fixed across all four
 scenarios, matching the synthetic pipeline's own convention -- these are
 the values from cv_alpha_real.py / cv_alpha_real_joint.py's held-out-angle
-cross-validation on the full scan, visually confirmed via run_full.py.
+cross-validation on the full scan.
 
 Real data cannot resimulate phase-stepping intensities at an arbitrary
 n_phase the way synthetic's scenario_utils.simulate_and_retrieve does --
@@ -23,8 +23,8 @@ retrieval -- the same leakage problem synthetic's resimulation approach was
 specifically built to avoid). N_SPARSE_STEPS=5 (every other step) is used
 here, not synthetic's N_SPARSE_PHASE=4.
 
-No ground truth, so -- like run_full.py -- comparison is via sinogram
-data-fit residual per channel/method, not RE/SSIM/PSNR.
+No ground truth, so comparison is via the sinogram data-fit residual per
+channel and method, not RE/SSIM/PSNR.
 
 Outputs (real_data/obs/scenarios/<scenario>/):
   comparison_fbp_tv_jtv.png, metrics_table.png, recon_arrays.npz
@@ -42,12 +42,15 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 import data_utils as du
 from map_real import make_direct_predict, make_dpc_predict, reconstruct_map_real
 
-COMMON_DIR = Path(__file__).resolve().parent.parent / "common"
-if str(COMMON_DIR) not in sys.path:
-    sys.path.insert(0, str(COMMON_DIR))
 from scenario_utils import make_sparse_angle_indices  # noqa: E402
 
 METHODS = ["FBP", "TV", "JTV"]
@@ -66,7 +69,7 @@ N_ITER = 150
 N_SPARSE_ANGLES = 30    
 N_SPARSE_STEPS = 5  # must evenly divide n_phase_full (10) -- see module docstring
 
-OUT_DIR = Path(__file__).resolve().parent / "obs" / "scenarios"
+OUT_DIR = BASE_DIR / "obs" / "scenarios"
 
 
 def synchronize_device(device) -> None:

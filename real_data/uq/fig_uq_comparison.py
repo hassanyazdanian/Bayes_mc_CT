@@ -46,11 +46,11 @@ file is one level deeper.
 
 Usage
 -----
-    python UQ_comparison_real_data.py
+    python fig_uq_comparison.py
 
 or, if automatic path detection does not match your project layout:
 
-    python UQ_comparison_real_data.py --uq_root /path/to/real_data/obs/uq
+    python fig_uq_comparison.py --uq_root /path/to/real_data/obs/uq
 
 Output
 ------
@@ -72,6 +72,13 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FormatStrFormatter
 
+
+import sys
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 SCENARIOS: List[Tuple[str, str]] = [
     ("full", "(a) Full data"),
@@ -126,7 +133,7 @@ plt.rcParams.update({
 
 def find_default_uq_root() -> Path:
     """Try common placements of real_data/obs/uq relative to this script."""
-    here = Path(__file__).resolve().parent
+    here = BASE_DIR
     candidates = [
         here / "real_data" / "obs" / "uq",
         here.parent / "real_data" / "obs" / "uq",
@@ -495,7 +502,7 @@ def main() -> None:
         raise FileNotFoundError(
             f"Real-data UQ root not found:\n  {uq_root}\n"
             "Pass it explicitly, e.g.\n"
-            "  python UQ_comparison_real_data.py --uq_root /path/to/real_data/obs/uq"
+            "  python fig_uq_comparison.py --uq_root /path/to/real_data/obs/uq"
         )
 
     print(f"Using real-data UQ root: {uq_root}")

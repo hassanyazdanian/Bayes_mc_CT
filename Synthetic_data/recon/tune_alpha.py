@@ -185,7 +185,7 @@ def main() -> None:
     print(f"Fixed: alpha_mu={best_alpha['mu']:.4g}, alpha_delta={best_alpha['delta']:.4g}, alpha_eps={best_alpha['eps']:.4g}")
 
     # Zero-init at every alpha_joint, matching run_scenarios.py and
-    # nuts_synthetic.py (see tune_alpha_joint_reoptimal.py).
+    # nuts_synthetic.py (see tune_alpha_joint.py).
     joint_rows: List[Dict] = []
     for aj in JOINT_SWEEP:
         out = reconstruct_map(

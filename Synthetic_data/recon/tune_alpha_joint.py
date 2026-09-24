@@ -11,8 +11,8 @@ determine each channel on their own, so the full scan can be uninformative
 about it (as with the real data, where alpha_joint was tuned on sparse_angle).
 
 Usage:
-    python tune_alpha_joint_reoptimal.py --alpha_mu 100 --alpha_delta 31.62 --alpha_eps 56.23
-    python tune_alpha_joint_reoptimal.py --alpha_mu 100 --alpha_delta 31.62 --alpha_eps 56.23 --scenario sparse_angle
+    python tune_alpha_joint.py --alpha_mu 100 --alpha_delta 31.62 --alpha_eps 56.23
+    python tune_alpha_joint.py --alpha_mu 100 --alpha_delta 31.62 --alpha_eps 56.23 --scenario sparse_angle
 
 Outputs (obs/tuning/): joint_sweep_reoptimal[_<scenario>].csv/.png (no suffix for full)
 """

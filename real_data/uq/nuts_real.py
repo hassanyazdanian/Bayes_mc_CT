@@ -58,28 +58,16 @@ import torch
 from pyro.infer.mcmc import MCMC, NUTS
 from pyro.ops.stats import effective_sample_size, gelman_rubin
 
-BASE_DIR = Path(__file__).resolve().parent
-COMMON_DIR = BASE_DIR.parent / "common"
-def _recon_dir(base: Path) -> Path:
-    """Locate the shared prior/metric module (map_tv_jtv.py).
 
-    It lived in <project>/recon/ before the synthetic pipeline was moved into
-    Synthetic_data/; accept either layout so this file works in both.
-    """
-    for candidate in (base / "recon", base / "Synthetic_data" / "recon"):
-        if (candidate / "map_tv_jtv.py").exists():
-            return candidate
-    return base / "recon"
-
-
-RECON_DIR = _recon_dir(BASE_DIR.parent)
 # Insertion order matters: recon/ has its own run_scenarios.py (the synthetic
 # one) -- BASE_DIR (real_data/) must end up at sys.path[0] so the import below
 # resolves to real_data/run_scenarios.py, not recon/'s.
-for p in (RECON_DIR, COMMON_DIR, BASE_DIR):
-    if str(p) in sys.path:
-        sys.path.remove(str(p))
-    sys.path.insert(0, str(p))
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 import data_utils as du  # noqa: E402
 from map_real import reconstruct_map_real  # noqa: E402

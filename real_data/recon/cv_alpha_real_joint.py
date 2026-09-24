@@ -1,40 +1,19 @@
 """
-Cross-validated alpha_joint sweep evaluated WITHIN the sparse-angle data
-regime, not the full 361-angle scan.
-
-Why: cv_alpha_real_joint.py's held-out split comes from the full scan
-(289 train / 72 test angles), where JTV's joint-TV curve turned out nearly
-flat across 7 orders of magnitude of alpha_joint -- the full scan is
-well-determined enough that channels don't need to borrow structure from
-each other, so there was no real signal there for CV to lock onto (matches
-the synthetic-data finding that JTV's benefit is specifically a
-limited-data phenomenon). Confirmed by the resulting run_scenarios.py
-comparison: JTV came out essentially tied with (sometimes marginally worse
-than) TV under sparse_angle/combined -- alpha_joint=2.15 just happened to
-sit on that flat plateau, not at a point where coupling does real work.
-
-This script instead: takes the SAME N_SPARSE_ANGLES=30-angle pool
-run_scenarios.py's sparse_angle scenario actually uses (make_sparse_angle_
-indices on the full 361), then further holds out a fraction of THAT pool
-as test angles, fits on the rest, and scores alpha_joint by held-out
-prediction error within this genuinely sparse regime -- where cross-channel
-coupling is actually supposed to matter.
-
-alpha_mu/delta/eps are held fixed at their (full-scan-CV-derived) values,
-matching the fixed-regularization-across-scenarios convention. sigma and
-field_scale are also the same global, full-scan-derived values used
-everywhere else (see data_utils.py) -- not re-derived from the sparse
-subset, for the same reasons run_scenarios.py fixed them globally.
+Cross-validated alpha_joint sweep: same held-out-angle methodology as
+cv_alpha_real.py, extended to the joint-TV coupling term. Channelwise
+alphas are held fixed at their own CV-optimal values (from
+cv_alpha_real.py); alpha_joint is swept, and each candidate is scored by
+held-out prediction error (summed across mu/delta/eps) on angles never
+used for fitting.
 
 Usage:
-    python cv_alpha_real_joint_sparse.py --alpha_mu 5.62 --alpha_delta 10 --alpha_eps 1.78
+    python cv_alpha_real_joint.py --alpha_mu 1.778 --alpha_delta 5.623 --alpha_eps 1.0
 
-Outputs (obs/tuning_cv/): joint_cv_sparse.csv, joint_cv_sparse.png
+Outputs (obs/tuning_cv/): joint_cv.csv, joint_cv.png
 """
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -44,17 +23,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import sys
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 import data_utils as du
 from map_real import make_direct_predict, make_dpc_predict, reconstruct_map_real
 from cv_alpha_real import OUT_DIR, TV_BETA, LAMBDA0, N_ITER, HOLDOUT_STRIDE
-from cv_alpha_real_joint import JOINT_SWEEP
 
-COMMON_DIR = Path(__file__).resolve().parent.parent / "common"
-if str(COMMON_DIR) not in sys.path:
-    sys.path.insert(0, str(COMMON_DIR))
-from scenario_utils import make_sparse_angle_indices  # noqa: E402
-
-N_SPARSE_ANGLES = 30  # matches run_scenarios.py
+JOINT_SWEEP = np.concatenate([[0.0], np.logspace(-4.0, 3.0, 22)])
 
 
 def main():
@@ -70,31 +50,34 @@ def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     data = du.load_real_intensities()
-    sinos_full = du.retrieve_and_correct_sinograms(data["I_meas"], data["I_ref"], verbose=False)
-    n_angles_full, n_det_eff = sinos_full["T"].shape
+    sinos = du.retrieve_and_correct_sinograms(data["I_meas"], data["I_ref"])
+    T_real, P_real, DPC_real, D_real = sinos["T"], sinos["P"], sinos["DPC"], sinos["D"]
+
+    n_angles_full, n_det_eff = T_real.shape
     beta_deg_full = du.make_beta_deg(data["angles"], n_angles_full)
     L_phys = du.geometry_for(data["I_ref"].shape[-1])
 
-    # The same 30-angle pool run_scenarios.py's sparse_angle scenario uses.
-    sparse_pool = make_sparse_angle_indices(n_angles_full, N_SPARSE_ANGLES)
-    # Within that pool, hold out every HOLDOUT_STRIDE-th as test.
-    test_pos = np.arange(0, len(sparse_pool), HOLDOUT_STRIDE)
-    train_pos = np.setdiff1d(np.arange(len(sparse_pool)), test_pos)
-    train_idx = sparse_pool[train_pos]
-    test_idx = sparse_pool[test_pos]
-    print(f"Sparse-angle pool: {len(sparse_pool)} angles -> {len(train_idx)} train, {len(test_idx)} held-out")
+    test_idx = np.arange(0, n_angles_full, HOLDOUT_STRIDE)
+    train_idx = np.setdiff1d(np.arange(n_angles_full), test_idx)
+    print(f"CV split: {len(train_idx)} train, {len(test_idx)} held-out angles")
 
     train_projector, train_det_spacing = du.build_projector(n_det_eff, L_phys, beta_deg_full[train_idx], device, dtype)
     test_projector, test_det_spacing = du.build_projector(n_det_eff, L_phys, beta_deg_full[test_idx], device, dtype)
 
-    # Global field_scale/sigma, same values used everywhere else (see
-    # data_utils.py / run_scenarios.py's module docstring for why these are
-    # not re-derived from the sparse subset).
-    mu_fbp = du.astra_fbp_real(sinos_full["T"], beta_deg_full, L_phys)
-    delta_fbp = du.astra_fbp_real(sinos_full["P"], beta_deg_full, L_phys)
-    eps_fbp = du.astra_fbp_real(sinos_full["D"], beta_deg_full, L_phys)
+    mu_fbp = du.astra_fbp_real(T_real, beta_deg_full, L_phys)
+    delta_fbp = du.astra_fbp_real(P_real, beta_deg_full, L_phys)
+    eps_fbp = du.astra_fbp_real(D_real, beta_deg_full, L_phys)
     field_scale = {"mu": du.robust_scale(mu_fbp), "delta": du.robust_scale(delta_fbp), "eps": du.robust_scale(eps_fbp)}
 
+    full_projector, full_det_spacing = du.build_projector(n_det_eff, L_phys, beta_deg_full, device, dtype)
+    with torch.no_grad():
+        predict_T_full = make_direct_predict(full_projector)
+        predict_delta_full = make_dpc_predict(full_projector, full_det_spacing)
+        predict_D_full = make_direct_predict(full_projector)
+        T0 = predict_T_full(torch.as_tensor(mu_fbp, dtype=dtype, device=device)).cpu().numpy()
+        DPC0 = predict_delta_full(torch.as_tensor(delta_fbp, dtype=dtype, device=device)).cpu().numpy()
+        D0 = predict_D_full(torch.as_tensor(eps_fbp, dtype=dtype, device=device)).cpu().numpy()
+    # Flat-field-based sigma, not FBP-residual -- see data_utils.py.
     sigma_I = du.estimate_sigma_I(data["I_ref"])
     sigma_ff = du.propagate_sigma_montecarlo(data["I_meas"], data["I_ref"], sigma_I, n_trials=50, seed=0)
     sigma = {"mu": sigma_ff["sigma_T"], "delta": sigma_ff["sigma_DPC"], "eps": sigma_ff["sigma_D"]}
@@ -102,14 +85,10 @@ def main():
     print("Sigma:", {k: f"{v:.4e}" for k, v in sigma.items()})
 
     fixed = {"mu": args.alpha_mu, "delta": args.alpha_delta, "eps": args.alpha_eps}
-    print(f"Fixed (channelwise CV-optimal): alpha_mu={fixed['mu']:.4g}, alpha_delta={fixed['delta']:.4g}, alpha_eps={fixed['eps']:.4g}")
+    print(f"Fixed (CV-optimal): alpha_mu={fixed['mu']:.4g}, alpha_delta={fixed['delta']:.4g}, alpha_eps={fixed['eps']:.4g}")
 
-    T_train = sinos_full["T"][train_idx]
-    DPC_train = sinos_full["DPC"][train_idx]
-    D_train = sinos_full["D"][train_idx]
-    T_test = sinos_full["T"][test_idx]
-    DPC_test = sinos_full["DPC"][test_idx]
-    D_test = sinos_full["D"][test_idx]
+    T_train, DPC_train, D_train = T_real[train_idx], DPC_real[train_idx], D_real[train_idx]
+    T_test, DPC_test, D_test = T_real[test_idx], DPC_real[test_idx], D_real[test_idx]
     predict_test = {
         "mu": make_direct_predict(test_projector),
         "delta": make_dpc_predict(test_projector, test_det_spacing),
@@ -150,7 +129,7 @@ def main():
         print(f"  alpha_joint={aj:9.3g}  relerr: mu={relerr_mu:.4f} delta={relerr_delta:.4f} eps={relerr_eps:.4f}  total={relerr_total:.4f}")
         rows.append(row)
 
-    with open(OUT_DIR / "joint_cv_sparse.csv", "w") as f:
+    with open(OUT_DIR / "joint_cv.csv", "w") as f:
         f.write("alpha_joint,relerr_mu,relerr_delta,relerr_eps,relerr_total\n")
         for row in rows:
             f.write(f"{row['alpha_joint']:.6g},{row['relerr_mu']:.6f},{row['relerr_delta']:.6f},{row['relerr_eps']:.6f},{row['relerr_total']:.6f}\n")
@@ -166,16 +145,16 @@ def main():
         ax.semilogx(aj_vals, vals, "o-", label=label, linewidth=2 if key == "relerr_total" else 1)
     ax.axvline(best_alpha_joint, color="r", linestyle="--", label=f"CV-optimal ({best_alpha_joint:.3g})")
     ax.set_xlabel("alpha_joint")
-    ax.set_ylabel("held-out relative error (within sparse-angle pool)")
+    ax.set_ylabel("held-out relative error")
     ax.legend(fontsize=8)
-    ax.set_title(f"Sparse-angle joint-TV CV (n_pool={len(sparse_pool)}, train={len(train_idx)}, test={len(test_idx)})")
+    ax.set_title(f"Joint-TV cross-validation (alpha_mu={fixed['mu']:.3g}, alpha_delta={fixed['delta']:.3g}, alpha_eps={fixed['eps']:.3g})")
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "joint_cv_sparse.png", dpi=180)
+    fig.savefig(OUT_DIR / "joint_cv.png", dpi=180)
     plt.close(fig)
 
-    print(f"\nALPHA_JOINT (sparse-angle cross-validation) = {best_alpha_joint:.4g}  (total relerr={total[best_idx]:.4f})")
-    print(f"Saved: {OUT_DIR / 'joint_cv_sparse.csv'}")
-    print(f"Saved: {OUT_DIR / 'joint_cv_sparse.png'}")
+    print(f"\nALPHA_JOINT (cross-validation) = {best_alpha_joint:.4g}  (total relerr={total[best_idx]:.4f})")
+    print(f"Saved: {OUT_DIR / 'joint_cv.csv'}")
+    print(f"Saved: {OUT_DIR / 'joint_cv.png'}")
 
 
 if __name__ == "__main__":

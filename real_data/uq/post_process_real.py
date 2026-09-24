@@ -3,7 +3,7 @@ Posterior mean/std (paper eqs. 25-27) from NUTS samples produced by
 nuts_real.py, plus a comparison-grid figure per channel: MAP, posterior
 mean, posterior std, |MAP - mean|.
 
-Differs from uq/post_process_nuts.py only in dropping the "True" column and
+Differs from common/posterior.py only in dropping the "True" column and
 the |True - mean| error column -- real data has no ground truth. |MAP -
 mean| is kept as a self-consistency diagnostic instead: MAP is the mode,
 posterior mean is the mean, and for these smoothed TV/JTV posteriors they
@@ -11,7 +11,7 @@ should be close if NUTS actually converged and the posterior isn't badly
 skewed; a large discrepancy is itself a useful red flag even without truth
 to compare against.
 
-posterior_mean_std/load_samples are reused as-is from uq/post_process_nuts.py
+posterior_mean_std/load_samples are reused as-is from common/posterior.py
 -- that function only touches stat["meta"]/stat["samples"], nothing
 synthetic-specific.
 
@@ -30,12 +30,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-BASE_DIR = Path(__file__).resolve().parent
-UQ_DIR = BASE_DIR.parent / "uq"
-if str(UQ_DIR) not in sys.path:
-    sys.path.insert(0, str(UQ_DIR))
 
-from post_process_nuts import load_samples, posterior_mean_std  # noqa: E402
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
+from posterior import load_samples, posterior_mean_std  # noqa: E402
 
 CHANNELS = [("mu", r"$\mu$"), ("delta", r"$\delta$"), ("eps", r"$\epsilon$")]
 

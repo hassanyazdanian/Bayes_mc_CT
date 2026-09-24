@@ -185,13 +185,11 @@ def astra_fbp_real(sino: np.ndarray, beta_deg: np.ndarray, L_phys: float, fbp_fi
     R.set_angles_deg(np.asarray(beta_deg, dtype=np.float32))
     R.set_sinogram(np.asarray(sino, dtype=np.float32))
     rec = R.reconstruct()
-    # NOT flipped, unlike the synthetic pipeline's astra_fbp: that flip was
-    # validated empirically against synthetic's known ground truth (ASTRA's
-    # row 0 = y-max there). There's no ground truth here to verify the same
-    # claim for real data's geometry, and the original reference scripts
-    # (MAP_joint_TV_real_data.py, MAP_joint_TV_sparse_angles_real.py) never
-    # flip the array either -- they just use origin="lower" consistently.
-    # Porting the synthetic fix here without re-verifying it was the bug.
+    # NOT flipped, unlike the synthetic pipeline's astra_fbp. That flip was
+    # validated against synthetic's known ground truth (ASTRA's row 0 = y-max
+    # there); there is no ground truth here to verify the same claim for this
+    # geometry, so the array is left as ASTRA returns it and displayed with
+    # origin="lower" throughout.
     return np.asarray(rec, dtype=np.float32)
 
 

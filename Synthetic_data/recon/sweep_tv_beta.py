@@ -39,8 +39,8 @@ full-scan results use, i.e. oracle tuning as in tune_alpha.py; pass --seed to
 tune on an independent realization instead.
 
 Usage:
-    python sweep_tv_beta_synthetic.py --stage alpha_beta
-    python sweep_tv_beta_synthetic.py --stage lambda0 --tv_beta 3e-3 \
+    python sweep_tv_beta.py --stage alpha_beta
+    python sweep_tv_beta.py --stage lambda0 --tv_beta 3e-3 \
         --alpha_mu 1000 --alpha_delta 300 --alpha_eps 500
 
 Outputs (obs/tuning/beta_sweep/; non-full scenarios add a _<scenario> suffix):
@@ -213,7 +213,7 @@ def stage_alpha_beta(prob: Dict, args, data_curv: Dict[str, float], device, dtyp
         b_sug = max(ok)
         print(f"\nSuggested tv_beta = {b_sug:g}  (largest beta within {100 * args.beta_re_tol:.0f}% of every channel's best RE)")
         print("Check alpha_beta_montage.png for background texture before accepting it. Next:")
-        print(f"  python sweep_tv_beta_synthetic.py --stage lambda0 --tv_beta {b_sug:g} "
+        print(f"  python sweep_tv_beta.py --stage lambda0 --tv_beta {b_sug:g} "
               + " ".join(f"--alpha_{ch} {best[(b_sug, ch)]['alpha']:.4g}" for ch in CHANNELS))
     else:
         print(f"\nNo single beta is within {100 * args.beta_re_tol:.0f}% of every channel's best RE; "

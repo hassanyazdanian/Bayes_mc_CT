@@ -3,7 +3,6 @@ Paper figure: True phantom vs. FBP/TV/JTV reconstructions across all four
 limited-data scenarios, as a single figure sized for one column of a two-column template.
 
 
-
 Times 12pt, one colorbar per row (4 ticks, at the right), row labels
 (True/FBP/TV/JTV) at the left rotated, each scenario's 3-row block framed
 with a border and a left-aligned header.
@@ -28,7 +27,13 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FormatStrFormatter
 
-BASE_DIR = Path(__file__).resolve().parent
+import sys
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 SCEN_DIR = BASE_DIR / "obs" / "scenarios" 
 
 SCENARIOS: List[Tuple[str, str]] = [

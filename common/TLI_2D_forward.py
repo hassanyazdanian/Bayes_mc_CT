@@ -31,10 +31,9 @@ class radon_fanbeam:
     ):
         self.device = device if device is not None else torch.device("cpu")
         self.dtype = dtype
-        # "bilinear" (default, what every current pipeline uses) or "nearest",
-        # which reproduces the pre-bilinear projector exactly -- the one the
-        # reference real_data/TV NUTS run was sampled with. Kept selectable so
-        # the two can be compared under otherwise identical conditions.
+        # Both studies reconstruct with "nearest"; "bilinear" is used only to
+        # simulate synthetic data on the fine grid, so the reconstruction never
+        # inverts the operator that generated the data.
         if interp not in ("bilinear", "nearest"):
             raise ValueError(f"interp={interp!r} must be 'bilinear' or 'nearest'")
         self.interp = interp
@@ -321,80 +320,6 @@ def dpc_from_phase_sino(P_sino: torch.Tensor, det_spacing):
     ) / (12.0 * h)
 
     return DPC
-
-# def dpc_from_phase_sino(P_sino: torch.Tensor, det_spacing):
-#     """
-#     FFT-based detector-direction derivative.
-#     det_spacing is the sample spacing h, not total detector width.
-#     """
-#     if not torch.is_tensor(P_sino):
-#         P = torch.as_tensor(P_sino)
-#     else:
-#         P = P_sino
-
-#     if torch.is_tensor(det_spacing):
-#         h = det_spacing.to(P.device).to(P.dtype)
-#     else:
-#         h = torch.tensor(det_spacing, dtype=P.dtype, device=P.device)
-
-#     n_angles, n_det = P.shape
-
-#     freq = torch.fft.fftfreq(n_det, d=float(h.detach().cpu()))
-#     freq = freq.to(P.device).to(P.dtype)
-
-#     F = torch.fft.fft(P, dim=1)
-#     dP = torch.fft.ifft(F * (2j * torch.pi * freq)[None, :], dim=1).real
-
-#     return dP
-
-# def dpc_from_phase_sino(
-#     P_sino: torch.Tensor,
-#     det_spacing,
-#     pad_factor: int = 2,
-#     taper_alpha: float = 0.0,
-# ) -> torch.Tensor:
-#     import torch
-#     import torch.nn.functional as F
-
-#     P = P_sino if torch.is_tensor(P_sino) else torch.as_tensor(P_sino)
-
-#     if P.ndim != 2:
-#         raise ValueError("P_sino must have shape (n_angles, n_det).")
-
-#     device = P.device
-#     dtype = P.dtype
-#     n_angles, n_det = P.shape
-
-#     h = float(det_spacing.detach().cpu()) if torch.is_tensor(det_spacing) else float(det_spacing)
-
-#     n_pad = max(int(pad_factor * n_det), n_det)
-#     start = (n_pad - n_det) // 2
-#     stop = start + n_det
-
-#     P_work = P
-
-#     # Optional taper only for artifact suppression
-#     if taper_alpha > 0.0:
-#         width = int(taper_alpha * n_det / 2)
-#         w = torch.ones(n_det, dtype=dtype, device=device)
-#         if width > 0:
-#             r = torch.arange(width, dtype=dtype, device=device)
-#             taper = 0.5 * (1.0 - torch.cos(torch.pi * r / width))
-#             w[:width] = taper
-#             w[-width:] = taper.flip(0)
-#         P_work = P_work * w[None, :]
-
-#     P_pad = torch.zeros((n_angles, n_pad), dtype=dtype, device=device)
-#     P_pad[:, start:stop] = P_work
-
-#     freq = torch.fft.fftfreq(n_pad, d=h, dtype=torch.float64, device=device)
-#     cdtype = torch.complex64 if dtype in (torch.float16, torch.float32) else torch.complex128
-#     kernel = (2j * torch.pi * freq).to(cdtype)
-
-#     F_hat = torch.fft.fft(P_pad, dim=1)
-#     dP_pad = torch.fft.ifft(F_hat.to(cdtype) * kernel[None, :], dim=1).real
-
-#     return dP_pad[:, start:stop]
 
 
 # ============================================================

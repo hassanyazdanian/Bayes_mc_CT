@@ -41,10 +41,17 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import sys
+BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 import data_utils as du
 from map_real import make_direct_predict, make_dpc_predict, reconstruct_single_channel_real
 
-OUT_DIR = Path(__file__).resolve().parent / "obs" / "tuning_cv"
+OUT_DIR = BASE_DIR / "obs" / "tuning_cv"
 
 CHANNELWISE_SWEEP = np.logspace(-4.0, 3.0, 29)
 CHANNELS = ["mu", "delta", "eps"]

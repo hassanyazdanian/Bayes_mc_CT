@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import pickle
+import sys
 from pathlib import Path
 from typing import Dict
 
@@ -19,36 +20,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+COMMON_DIR = BASE_DIR.parent / "common"
+if str(COMMON_DIR) not in sys.path:
+    sys.path.insert(0, str(COMMON_DIR))
+
+from posterior import load_samples, posterior_mean_std  # noqa: E402
 CHANNELS = [("mu", r"$\mu$"), ("delta", r"$\delta$"), ("eps", r"$\epsilon$")]
-
-
-def load_samples(pickle_path: Path) -> Dict:
-    with open(pickle_path, "rb") as f:
-        return pickle.load(f)
-
-
-def posterior_mean_std(stat: Dict) -> Dict[str, np.ndarray]:
-    """Pixel-wise posterior mean/std per channel (paper eqs. 25-27), in
-    physical units (un-normalized by field_scale, scattered back through the
-    support mask -- pixels outside the mask are exactly 0 in every sample)."""
-    meta = stat["meta"]
-    N, n_active, R = meta["N"], meta["n_active"], meta["support_R"]
-
-    y = np.linspace(-1.0, 1.0, N)
-    x = np.linspace(-1.0, 1.0, N)
-    Y, X = np.meshgrid(y, x, indexing="ij")
-    mask = (X ** 2 + Y ** 2) <= (R ** 2)
-
-    z = stat["samples"]["z"].numpy()  # (K, 3*n_active)
-    out: Dict[str, np.ndarray] = {}
-    for i, ch in enumerate(("mu", "delta", "eps")):
-        scale = meta[f"field_scale_{ch}"]
-        z_ch = z[:, i * n_active:(i + 1) * n_active] * scale  # (K, n_active), physical units
-        img = np.zeros((z_ch.shape[0], N, N), dtype=np.float64)
-        img[:, mask] = z_ch
-        out[f"{ch}_mean"] = img.mean(axis=0)
-        out[f"{ch}_std"] = img.std(axis=0, ddof=1)
-    return out
 
 
 def plot_uq_grid(stat: Dict, post: Dict[str, np.ndarray], save_path: Path) -> None:
