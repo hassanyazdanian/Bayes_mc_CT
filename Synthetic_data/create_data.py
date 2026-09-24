@@ -26,12 +26,10 @@ import torch
 # -----------------------------------------------------------------------------
 # Local imports
 # -----------------------------------------------------------------------------
-
 BASE_DIR = Path(__file__).resolve().parent
-COMMON_DIR = BASE_DIR / "common"
-for p in (BASE_DIR, COMMON_DIR):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+COMMON_DIR = BASE_DIR.parent / "common"
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 from phantoms import (  # noqa: E402
     MULTICONTRAST_ANNOTATIONS,
@@ -41,10 +39,13 @@ from phantoms import (  # noqa: E402
     save_phantom_npz,
     set_publication_style,
 )
-from TLI_2D_forward import TLInterferometryForward2D, radon_fanbeam  # noqa: E402
-from phase_stepping import ColumnPhaseSteppingProcessor, PhaseSteppingConfig  # noqa: E402
+from TLI_2D_forward import (
+    TLInterferometryForward2D,
+    radon_fanbeam)
 
-
+from phase_stepping import (
+    ColumnPhaseSteppingProcessor,
+    PhaseSteppingConfig)
 # -----------------------------------------------------------------------------
 # Noise models
 # -----------------------------------------------------------------------------
@@ -295,6 +296,40 @@ def build_phantom(
     return make_phantom(phantom, N=N, supersample=supersample)
 
 
+def calibrate_phantom_scale(
+    ph: Dict[str, np.ndarray],
+    projector: radon_fanbeam,
+    I0: float,
+    vis: float,
+    target_dpc_max: float,
+) -> Tuple[Dict[str, np.ndarray], float]:
+    """Rescale mu/delta/eps together so max|DPC| stays within ``target_dpc_max``.
+
+    DPC = -d(radon(delta))/du is exactly linear in delta and independent of
+    mu and eps, so one trial forward pass gives the exact scale factor
+    needed -- no iteration required. Scaling all three fields by the same
+    factor keeps the phantom's relative material contrast unchanged; it
+    only avoids the +/-pi wrap-around that would otherwise make the
+    single-harmonic phase retrieval ambiguous.
+    """
+    model = TLInterferometryForward2D(projector, I0=I0, vis=vis)
+    trial = model.forward(ph["mu"], ph["delta"], ph["eps"], n_phase=2)
+    dpc_max = float(np.abs(trial.DPC.detach().cpu().numpy()).max())
+
+    if dpc_max <= target_dpc_max or dpc_max == 0.0:
+        return ph, 1.0
+
+    scale = target_dpc_max / dpc_max
+    print(
+        f"Calibration: unscaled max|DPC|={dpc_max:.3f} rad exceeds target "
+        f"{target_dpc_max:.3f} rad; scaling mu/delta/eps by {scale:.4g}."
+    )
+    scaled = dict(ph)
+    for key in ("mu", "delta", "eps"):
+        scaled[key] = (np.asarray(ph[key], dtype=np.float32) * scale).astype(np.float32)
+    return scaled, scale
+
+
 def generate_synthetic_data(
     phantom: str = "inclusion",
     N: int = 128,
@@ -312,6 +347,8 @@ def generate_synthetic_data(
     I0: float = 1.0,
     vis: float = 0.3,
     n_phase: int = 10,
+    calibrate_dpc: bool = True,
+    target_dpc_max: float = 0.8 * np.pi,
     noise_type: str = "gaussian",
     noise_level: float = 0.05,
     seed: int = 0,
@@ -335,12 +372,6 @@ def generate_synthetic_data(
     # 1. Phantom
     # ------------------------------------------------------------------
     ph = build_phantom(phantom, N=N, supersample=supersample, phantom_npz=phantom_npz)
-    mu = np.asarray(ph["mu"], dtype=np.float32)
-    delta = np.asarray(ph["delta"], dtype=np.float32)
-    eps = np.asarray(ph["eps"], dtype=np.float32)
-    labels = np.asarray(ph.get("labels", np.zeros_like(mu, dtype=np.uint8)))
-
-    save_phantom_npz(out_dir / f"{phantom}_phantom_{N}.npz", ph)
 
     # ------------------------------------------------------------------
     # 2. Forward model
@@ -363,6 +394,22 @@ def generate_synthetic_data(
 
     beta = torch.linspace(0.0, 2.0 * torch.pi, n_angles + 1, dtype=dtype, device=torch_device)[:-1]
     projector.set_view_angles(beta)
+
+    # Rescale mu/delta/eps together (contrast ratios preserved) so max|DPC|
+    # stays within target_dpc_max for this exact geometry -- see
+    # calibrate_phantom_scale() for why this is exact, not a guess.
+    contrast_scale = 1.0
+    if calibrate_dpc:
+        ph, contrast_scale = calibrate_phantom_scale(
+            ph, projector, I0=I0, vis=vis, target_dpc_max=target_dpc_max
+        )
+
+    mu = np.asarray(ph["mu"], dtype=np.float32)
+    delta = np.asarray(ph["delta"], dtype=np.float32)
+    eps = np.asarray(ph["eps"], dtype=np.float32)
+    labels = np.asarray(ph.get("labels", np.zeros_like(mu, dtype=np.uint8)))
+
+    save_phantom_npz(out_dir / f"{phantom}_phantom_{N}.npz", ph)
 
     model = TLInterferometryForward2D(projector, I0=I0, vis=vis)
     out = model.forward(mu, delta, eps, n_phase=n_phase)
@@ -469,6 +516,9 @@ def generate_synthetic_data(
         "I0": float(I0),
         "vis": float(vis),
         "n_phase": int(n_phase),
+        "calibrate_dpc": bool(calibrate_dpc),
+        "target_dpc_max": float(target_dpc_max),
+        "contrast_scale": float(contrast_scale),
         "noise_model": noise_type,
         "noise_level": float(noise_level),
         "sigma_meas": float(sigma_meas),
@@ -505,6 +555,7 @@ def generate_synthetic_data(
     print(f"I_meas shape: {I_meas.shape}  layout=(angle, phase, detector)")
     print(f"sigma_T={sigma_T:.4g}, sigma_P={sigma_P:.4g}, sigma_D={sigma_D:.4g}, sigma_DPC={sigma_DPC:.4g}")
     print(f"sigma_meas={sigma_meas:.4g}, sigma_ref={sigma_ref:.4g}")
+    print(f"contrast_scale={contrast_scale:.4g}, max|DPC|={dpc_abs_max:.4g} rad (target <= {target_dpc_max:.4g})")
 
     return data
 
@@ -515,14 +566,14 @@ def generate_synthetic_data(
 
 def main() -> None:
     generate_synthetic_data(
-        phantom="inclusion",           # "disk", "inclusion", "shepp", or "multicontrast"
-        N=128,
+        phantom="multicontrast",           # "disk", "inclusion", "shepp", or "multicontrast"
+        N=256,
         supersample=2,
         phantom_npz=None,              # optional phantom .npz file to load instead of generating
         out_dir=None,                  # defaults to ./obs next to this script
         n_angles=180,
-        n_det=128,
-        n_quad=182,
+        n_det=256,
+        n_quad=256*np.sqrt(2),
         L_phys=0.06,
         DSO_phys=0.20,
         DOD_phys=0.20,
@@ -531,6 +582,8 @@ def main() -> None:
         I0=1.0,
         vis=0.3,
         n_phase=10,
+        calibrate_dpc=True,            # rescale mu/delta/eps together so max|DPC| <= target_dpc_max
+        target_dpc_max=0.8 * np.pi,    # safety margin below the +/-pi wrapping threshold
         noise_type="gaussian",         # "none", "gaussian", or "poisson"
         noise_level=0.05,
         seed=0,

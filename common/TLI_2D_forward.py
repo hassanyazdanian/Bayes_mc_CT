@@ -27,9 +27,17 @@ class radon_fanbeam:
         det_center_offset_phys: float = 0.0,
         device=None,
         dtype=torch.float32,
+        interp: str = "nearest",
     ):
         self.device = device if device is not None else torch.device("cpu")
         self.dtype = dtype
+        # "bilinear" (default, what every current pipeline uses) or "nearest",
+        # which reproduces the pre-bilinear projector exactly -- the one the
+        # reference real_data/TV NUTS run was sampled with. Kept selectable so
+        # the two can be compared under otherwise identical conditions.
+        if interp not in ("bilinear", "nearest"):
+            raise ValueError(f"interp={interp!r} must be 'bilinear' or 'nearest'")
+        self.interp = interp
 
         self.N_detect = int(N_detect)
         self.N_quad = int(N_quad)
@@ -170,8 +178,8 @@ class radon_fanbeam:
         px = px_local.unsqueeze(0).repeat(M, 1, 1)
         py = py_local.unsqueeze(0).repeat(M, 1, 1)
 
-        self.QPX = cb * px - sb * py
-        self.QPY = sb * px + cb * py
+        QPX = cb * px - sb * py
+        QPY = sb * px + cb * py
 
         # self.mask = seg_ok.view(1, -1, 1).repeat(M, 1, self.N_quad)
         # self.mask = (
@@ -180,14 +188,39 @@ class radon_fanbeam:
         #     & (self.QPY >= -1.0) & (self.QPY <= 1.0)
         # )
 
-        self.mask = seg_ok.view(1, -1, 1).repeat(M, 1, self.N_quad) & (self.QPX**2 + self.QPY**2 <= (R**2))
+        self.mask = seg_ok.view(1, -1, 1).repeat(M, 1, self.N_quad) & (QPX**2 + QPY**2 <= (R**2))
+        # The sinogram accumulator only needs this SHAPE, so QPX/QPY are not
+        # retained: at full-scan geometry (361 x 842 x 842) they are ~2 GB.
+        self.sino_shape = self.mask.shape
     
 
-        QPX_IDX = ((self.QPX + 1.0) / 2.0) * (self.N_pix - 1)
-        QPY_IDX = ((self.QPY + 1.0) / 2.0) * (self.N_pix - 1)
+        qpx = (((QPX + 1.0) / 2.0) * (self.N_pix - 1))[self.mask]
+        qpy = (((QPY + 1.0) / 2.0) * (self.N_pix - 1))[self.mask]
+        del QPX, QPY, px, py, cb, sb
 
-        self.QPX_IDX = QPX_IDX[self.mask].to(torch.int64)
-        self.QPY_IDX = QPY_IDX[self.mask].to(torch.int64)
+        # Store ONLY the kernel actually in use. At full-scan geometry the
+        # masked index set is ~100M points, so bilinear costs ~4.1 GB and
+        # nearest ~1.6 GB; keeping both wasted 4 GB per projector, and
+        # cv_alpha_real_joint.py builds three of them.
+        if self.interp == "nearest":
+            # Same truncation expression as the reference real_data/TV
+            # pipeline: no clamp, so it reproduces it exactly.
+            self.QPX_IDX_NN = qpx.to(torch.int64)
+            self.QPY_IDX_NN = qpy.to(torch.int64)
+        else:
+            # Bilinear: spreads each quadrature sample over the 4 neighbouring
+            # pixels, giving O(h^2) interpolation error against nearest's
+            # O(h), and avoiding the pixel-grid "staircase" that
+            # nearest-neighbour lookup writes into a simulated sinogram (which
+            # a ramp-filtered FBP then amplifies -- relevant when the
+            # projector GENERATES data, as in the synthetic pipeline).
+            x0 = torch.floor(qpx).clamp(0, self.N_pix - 2).to(torch.int64)
+            y0 = torch.floor(qpy).clamp(0, self.N_pix - 2).to(torch.int64)
+            self.QPX_IDX0, self.QPX_IDX1 = x0, x0 + 1
+            self.QPY_IDX0, self.QPY_IDX1 = y0, y0 + 1
+            self.frac_x = (qpx - x0.to(self.dtype)).clamp(0.0, 1.0)
+            self.frac_y = (qpy - y0.to(self.dtype)).clamp(0.0, 1.0)
+        del qpx, qpy
 
     def make_sinogram(self, im_norm: torch.Tensor, return_physical: bool = True):
         if self.beta is None:
@@ -195,8 +228,22 @@ class radon_fanbeam:
 
         im_norm = im_norm.to(self.device).to(self.dtype)
 
-        temp = torch.zeros_like(self.QPX, dtype=self.dtype, device=self.device)
-        temp[self.mask] = im_norm[self.QPY_IDX, self.QPX_IDX]
+        if self.interp == "nearest":
+            vals = im_norm[self.QPY_IDX_NN, self.QPX_IDX_NN]
+        else:
+            v00 = im_norm[self.QPY_IDX0, self.QPX_IDX0]
+            v01 = im_norm[self.QPY_IDX0, self.QPX_IDX1]
+            v10 = im_norm[self.QPY_IDX1, self.QPX_IDX0]
+            v11 = im_norm[self.QPY_IDX1, self.QPX_IDX1]
+            vals = (
+                v00 * (1.0 - self.frac_x) * (1.0 - self.frac_y)
+                + v01 * self.frac_x * (1.0 - self.frac_y)
+                + v10 * (1.0 - self.frac_x) * self.frac_y
+                + v11 * self.frac_x * self.frac_y
+            )
+
+        temp = torch.zeros(self.sino_shape, dtype=self.dtype, device=self.device)
+        temp[self.mask] = vals
         sino_norm = torch.sum(temp, dim=-1) * self.dx.view(1, -1)
 
         if return_physical:

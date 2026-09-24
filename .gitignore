@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------------------
+# OS and editor
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.spyproject/
+.idea/
+.vscode/
+*.swp
+
+# ---------------------------------------------------------------------------
+# Run artifacts
+#
+# Every pipeline writes under obs/. Posterior sample archives are ~2.3 GB each
+# (17 of them, ~39 GB total), so nothing generated is tracked. Regenerate with
+# the drivers listed in README.md.
+# ---------------------------------------------------------------------------
+obs/
+*.log
+*.pickle
+*.pkl
+forward_validate/paper_roundtrip_outputs/
+
+# real_data/obs/ also holds the experimental measurements. Re-admit those four
+# arrays (24 MB): they are the only input here that cannot be regenerated.
+!real_data/obs/
+real_data/obs/*
+!real_data/obs/I_meas_central.npy
+!real_data/obs/I_ref_central.npy
+!real_data/obs/angles.npy
+!real_data/obs/steps.npy

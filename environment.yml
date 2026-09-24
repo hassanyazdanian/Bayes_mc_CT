@@ -1,0 +1,21 @@
+# conda env create -f environment.yml && conda activate bayes-mc-ct
+#
+# ASTRA is not on PyPI, which is why this is a conda environment rather than a
+# requirements.txt. The FBP baseline (common/fanbeam_astra.py) needs the CUDA
+# build of ASTRA; everything else runs on CPU, though posterior sampling is
+# impractically slow without a GPU.
+name: bayes-mc-ct
+channels:
+  - astra-toolbox
+  - conda-forge
+dependencies:
+  - python>=3.11
+  - numpy>=1.24
+  - h5py>=3.8
+  - matplotlib>=3.7
+  - scikit-image>=0.21
+  - astra-toolbox>=2.1
+  - pytorch>=2.0
+  - pip
+  - pip:
+      - pyro-ppl>=1.9
