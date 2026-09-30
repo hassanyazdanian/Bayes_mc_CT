@@ -51,17 +51,17 @@ real_data/         Experimental Talbot-Lau study
 forward_validate/  Round-trip check of the forward model against measurement
 ```
 
-Each study writes to its own `obs/` directory, which is not tracked.
+Each study writes its outputs to its own `obs/` directory. These outputs are not tracked; the experimental inputs in `real_data/obs/` are (see Data).
 Scripts locate `common/` and their own study directory relative to their
 own path, so they can be run from anywhere.
 
 ## Data
 
-`real_data/obs/` holds the experimental measurements: a 360° scan of 361
-projection angles × 10 phase steps × 843 detector pixels, as `I_meas_central.npy`
-(sample) and `I_ref_central.npy` (flat field), with `angles.npy` and `steps.npy`.
-These are the only inputs that cannot be regenerated. Synthetic data is built by
-`synthetic_data/create_data.py`.
+`real_data/obs/` holds the experimental measurements used in the paper: the central detector row of a 360° Talbot–Lau scan, with 361 projection angles × 10 phase steps × 843 detector pixels, as `I_meas_central.npy` (sample) and `I_ref_central.npy` (flat field), with `angles.npy` and `steps.npy`. The row was extracted from the full dataset (224 files, about 463 GB), which is openly available under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/):
+
+H. Mäkinen, H. Suhonen, T. Siiskonen, C. David, and S. Huotari, "Dataset for paper Optimization of contrast and dose in X-ray phase-contrast tomography with a Talbot-Lau interferometer," University of Helsinki, 2023. [https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa](https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa)
+
+These are the only inputs that cannot be regenerated. Synthetic data is built by `synthetic_data/create_data.py`.
 
 ## Reproducing the results
 
