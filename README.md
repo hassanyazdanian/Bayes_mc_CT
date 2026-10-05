@@ -60,31 +60,38 @@ own path, so they can be run from anywhere.
 ## Data
 
 `real_data/obs/` holds the experimental measurements used in the paper: the
-central detector row of a 360° Talbot–Lau scan, with 361 projection angles ×
-10 phase steps × 843 detector pixels, as `I_meas_central.npy` (sample) and
-`I_ref_central.npy` (flat field), with `angles.npy` (angle indices 1–361, i.e.
-0°–360° in 1° steps) and `steps.npy` (step indices 1–10).
+central detector row of a 360° Talbot–Lau scan of a PMMA rod with sugar–water
+cavities, with 361 projection angles × 10 phase steps × 843 detector pixels, as
+`I_meas_central.npy` (sample) and `I_ref_central.npy` (flat field), with
+`angles.npy` (angle indices 1–361, i.e. 0°–360° in 1° steps) and `steps.npy`
+(step indices 1–10).
 
-The row comes from the 35 kV water-container scan of the sugar-solution
-phantom in H. Mäkinen et al., *Biomed. Phys. Eng. Express* 10, 045045 (2024)
-(acquisition folder `pmma_stick_phantom/scan22`), whose raw images are part of
-the open dataset (about 463 GB), licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/):
+The raw phase-stepping images of this scan (35 kV, 40 mA, 18 s per step) are
+openly available under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+as `PC_PMMA_Phantom/raw.zip` (15.5 GB) in
 
-> H. Mäkinen, H. Suhonen, T. Siiskonen, C. David, and S. Huotari, "Dataset for
-> paper Optimization of contrast and dose in X-ray phase-contrast tomography
-> with a Talbot-Lau interferometer," University of Helsinki, 2023.
-> [https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa](https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa)
+> H. Mäkinen, "Data for paper: Bayesian Joint Reconstruction and Uncertainty
+> Quantification for Limited-Data Multi-Contrast X-ray CT," University of
+> Helsinki, 2026.
+> [https://doi.org/10.23729/fd-769dae34-0245-386f-a856-92e1adc60f18](https://doi.org/10.23729/fd-769dae34-0245-386f-a856-92e1adc60f18)
 
-`real_data/extract_central_row.py` rebuilds the four files from the scan's
-`raw/` folder and needs only numpy. It takes the transaxial detector line
-through the detector centre (column 768 of the 864 × 1536 raw images), keeps
-rows 10–852, and shifts this window at each angle by the random sample offset
-recorded in `scan.csv` (−10 to 10 pixels, applied during acquisition to reduce
-ring artefacts), for both the object (`im`) and reference (`ref`) images:
+They are repackaged from the dataset
+([https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa](https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa))
+of H. Mäkinen et al., "Optimization of contrast and dose in x-ray
+phase-contrast tomography with a Talbot-Lau interferometer," *Biomed. Phys.
+Eng. Express* 10, 045045 (2024),
+[https://doi.org/10.1088/2057-1976/ad5206](https://doi.org/10.1088/2057-1976/ad5206),
+in which this is the 35 kV water-container scan.
+
+`real_data/extract_central_row.py` rebuilds the four files from the unpacked
+images and needs only numpy. It takes the transaxial detector line through the
+detector centre (column 768 of the 864 × 1536 raw images), keeps rows 10–852,
+and shifts this window at each angle by the random sample offset recorded in
+`scan.csv` (−10 to 10 pixels, applied during acquisition to reduce ring
+artefacts), for both the object (`im`) and reference (`ref`) images:
 
 ```bash
-python real_data/extract_central_row.py /path/to/pmma_stick_phantom/scan22/raw
+python real_data/extract_central_row.py /path/to/raw   # folder with the .smv files and scan.csv
 ```
 
 Synthetic data is built by `synthetic_data/create_data.py`.
