@@ -1,12 +1,13 @@
 """Extract the slice data used in the paper from the raw Talbot-Lau scan.
 
-Source: scan pmma_stick_phantom/scan22 (acquired June 2023) of the open dataset
-    H. Mäkinen, H. Suhonen, T. Siiskonen, C. David, and S. Huotari, "Dataset for paper
-    Optimization of contrast and dose in X-ray phase-contrast tomography with a
-    Talbot-Lau interferometer", University of Helsinki, 2023,
-    https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa (CC BY 4.0).
+Source: PC_PMMA_Phantom/raw.zip of the open dataset
+    H. Mäkinen, "Data for paper: Bayesian Joint Reconstruction and Uncertainty
+    Quantification for Limited-Data Multi-Contrast X-ray CT", University of Helsinki,
+    2026, https://doi.org/10.23729/fd-769dae34-0245-386f-a856-92e1adc60f18 (CC BY 4.0),
+    repackaged from scan pmma_stick_phantom/scan22 of
+    https://doi.org/10.23729/60132ae3-1ce3-41eb-935f-d0721ad464aa.
 
-Its raw/ folder holds, for each of the 361 angles (0-360 deg in 1-deg steps) and 10 phase
+The unpacked folder holds, for each of the 361 angles (0-360 deg in 1-deg steps) and 10 phase
 steps, an object image imAAAA_SS.smv and a reference (flat-field) image refAAAA_SS.smv,
 each an SMV file with a 512-byte header and 864 x 1536 uint16 pixels. Its scan.csv lists,
 in the pix_offset column, the random sample offset in pixels applied at each angle to
@@ -18,7 +19,7 @@ kept, shifted at each angle by pix_offset so that the sample stays fixed in the 
 object and reference images use the same window.
 
 Usage:
-    python extract_central_row.py /path/to/scan22/raw [output_dir]
+    python extract_central_row.py /path/to/raw [output_dir]
 
 Writes I_meas_central.npy and I_ref_central.npy (361 x 10 x 843, float32), angles.npy
 (angle indices 1-361) and steps.npy (step indices 1-10) to output_dir, by default obs/
