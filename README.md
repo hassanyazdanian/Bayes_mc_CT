@@ -117,13 +117,25 @@ python synthetic_data/uq/uq_calibration.py
 **Experimental study.**
 
 ```bash
-python real_data/recon/cv_alpha_real.py          # per-channel prior weights
-python real_data/recon/cv_alpha_real_joint.py    # joint-prior weight
+python real_data/recon/sweep_tv_beta_lambda0.py --betas 0.01 0.03 0.1 \
+    --lambda0s 1e-6 1e-4 1e-3 1e-2 1e-1          # smoothing beta, amplitude weight lambda0
+python real_data/recon/cv_alpha_real.py          # channel weights, by held-out angles
+python real_data/recon/cv_alpha_real_joint.py \
+    --alpha_mu 5.62 --alpha_delta 10 --alpha_eps 1.78    # held-out error vs. joint weight
+python real_data/recon/tune_alpha_joint_ssim_sparse.py \
+    --alpha_mu 5.62 --alpha_delta 10 --alpha_eps 1.78    # joint weight, by SSIM on sparse angles
 python real_data/recon/run_scenarios.py          # FBP / TV / JTV, four scenarios
 python real_data/uq/nuts_real.py --scenario full --alpha_joint 0 --num_samples 1000    # TV
 python real_data/uq/nuts_real.py --scenario full --num_samples 1000                    # joint TV
 python real_data/uq/uq_summary.py
 ```
+
+The first four commands reproduce the parameter selection. `cv_alpha_real.py`
+reports its held-out minimum at `alpha_delta = 17.78`; the paper uses
+`alpha_delta = 10`, the lower end of the range within 0.42 % of that minimum,
+because it samples better. The held-out error barely changes with
+`alpha_joint`, so its value (1) comes from the SSIM sweep. All selected values
+are fixed in `real_data/recon/run_scenarios.py`.
 
 `--scenario` takes `full`, `sparse_angle`, `sparse_step` or `combined`. The
 sampling scripts default to 200 samples and 200 warmup iterations for quick

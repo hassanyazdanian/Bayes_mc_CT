@@ -8,10 +8,11 @@ Why: held-out data-fit (cv_alpha_real_joint.py, cv_alpha_real_joint_sparse.py)
 structurally penalizes regularization, since priors are supposed to trade
 fit for prior belief -- it can tell us whether we're over/under-fitting the
 noisy data, not whether the resulting image is actually better. Both of
-those held-out sweeps picked alpha_joint~2.15 regardless of whether the
-held-out split came from the full scan or the sparse-angle pool itself --
-suggestive that data-fit isn't the right axis to find where JTV's image-
-domain benefit shows up. This mirrors exactly why synthetic data used
+those held-out sweeps are nearly flat in alpha_joint: over [0, 2.15] the
+full-scan split varies by less than 0.1 % (lowest at 0.46) and the
+sparse-angle split by 0.4 % (lowest at 1e-3), so data-fit isn't the right
+axis to find where JTV's image-domain benefit shows up. This mirrors
+exactly why synthetic data used
 RE/SSIM against ground truth rather than data-fit for its own alpha_joint
 selection; the full-scan TV reconstruction plays the role ground truth
 played there.

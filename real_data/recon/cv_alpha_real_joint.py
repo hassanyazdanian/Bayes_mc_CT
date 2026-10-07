@@ -1,13 +1,18 @@
 """
 Cross-validated alpha_joint sweep: same held-out-angle methodology as
 cv_alpha_real.py, extended to the joint-TV coupling term. Channelwise
-alphas are held fixed at their own CV-optimal values (from
-cv_alpha_real.py); alpha_joint is swept, and each candidate is scored by
-held-out prediction error (summed across mu/delta/eps) on angles never
-used for fitting.
+alphas are held fixed at the values used in the paper (from
+cv_alpha_real.py, with alpha_delta at the lower end of its flat held-out
+range); alpha_joint is swept, and each candidate is scored by held-out
+prediction error (summed across mu/delta/eps) on angles never used for
+fitting.
+
+The held-out error is nearly flat in alpha_joint (it varies by less than
+0.1 % over [0, 2.15]), so it does not select alpha_joint; the paper's
+value comes from tune_alpha_joint_ssim_sparse.py.
 
 Usage:
-    python cv_alpha_real_joint.py --alpha_mu 1.778 --alpha_delta 5.623 --alpha_eps 1.0
+    python cv_alpha_real_joint.py --alpha_mu 5.62 --alpha_delta 10 --alpha_eps 1.78
 
 Outputs (obs/tuning_cv/): joint_cv.csv, joint_cv.png
 """

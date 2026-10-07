@@ -30,6 +30,7 @@ The alpha/tv_beta column is the sampling-side cost of the same choice.
 
 Usage:
     python sweep_tv_beta_lambda0.py --scenario sparse_angle
+    python sweep_tv_beta_lambda0.py --betas 0.01 0.03 0.1 --lambda0s 1e-6 1e-4 1e-3 1e-2 1e-1   # grid used in the paper
     python sweep_tv_beta_lambda0.py --betas 1e-4 1e-3 1e-2 --lambda0s 1e-6 1e0 1e2
     python sweep_tv_beta_lambda0.py --priors tv jtv --montage_channel eps
 
@@ -87,9 +88,12 @@ def main():
     parser.add_argument("--scenario", type=str, default="sparse_angle", choices=SCENARIOS)
     parser.add_argument("--betas", type=float, nargs="+", default=[1e-4, 1e-3, 1e-2])
     parser.add_argument("--lambda0s", type=float, nargs="+", default=[1e-6, 1e-2, 1e0, 1e2],
-                         help="The L2 term contributes curvature lambda0 per pixel against a data "
-                              "curvature of ~1.2e4, so values below ~1 cannot move the MAP; they can "
-                              "still lift lambda_min for the sampler.")
+                         help="The L2 term adds curvature lambda0 per pixel, small against the mean "
+                              "data curvature (~1.2e4), so it barely moves the mu and eps MAPs. Phase "
+                              "is the exception: the DPC operator leaves its smooth modes weakly "
+                              "determined, and at tv_beta 0.03, lambda0 = 1e-2 (1e-1) raises the "
+                              "phase RE against FBP by 4 percent (54 percent). In every channel it lifts "
+                              "lambda_min for the sampler.")
     parser.add_argument("--priors", type=str, nargs="+", default=["tv"], choices=["tv", "jtv"])
     parser.add_argument("--montage_channel", type=str, default="delta", choices=CHANNELS)
     parser.add_argument("--projector", type=str, default=None, choices=("bilinear", "nearest"))
