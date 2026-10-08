@@ -111,7 +111,11 @@ python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario fu
     --alpha_joint 0 --num_samples 1000 --warmup_steps 500        # TV
 python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario full \
     --alpha_joint 29.55 --num_samples 1000 --warmup_steps 500    # joint TV
+python synthetic_data/uq/post_process_nuts.py --phantom multicontrast --scenario full --prior tv
+python synthetic_data/uq/post_process_nuts.py --phantom multicontrast --scenario full --prior jtv
 python synthetic_data/uq/uq_calibration.py
+python synthetic_data/recon/fig_map_comparison.py
+python synthetic_data/uq/fig_uq_comparison.py
 ```
 
 **Experimental study.**
@@ -127,7 +131,11 @@ python real_data/recon/tune_alpha_joint_ssim_sparse.py \
 python real_data/recon/run_scenarios.py          # FBP / TV / JTV, four scenarios
 python real_data/uq/nuts_real.py --scenario full --alpha_joint 0 --num_samples 1000    # TV
 python real_data/uq/nuts_real.py --scenario full --num_samples 1000                    # joint TV
+python real_data/uq/post_process_real.py --scenario full --prior tv
+python real_data/uq/post_process_real.py --scenario full --prior jtv
 python real_data/uq/uq_summary.py
+python real_data/recon/fig_map_comparison.py
+python real_data/uq/fig_uq_comparison.py
 ```
 
 The first four commands reproduce the parameter selection. `cv_alpha_real.py`
@@ -141,6 +149,14 @@ are fixed in `real_data/recon/run_scenarios.py`.
 sampling scripts default to 200 samples and 200 warmup iterations for quick
 runs; the commands above use the settings of the paper (see
 [Runtimes](#runtimes)).
+
+Sampling writes only the sample archive. `post_process_nuts.py` and
+`post_process_real.py` reduce each archive to the `posterior_mean_std.npz`
+summary that `uq_calibration.py` and both UQ figures read, one scenario and one
+prior per call, so repeat them for every scenario and prior to be shown. Note
+that `post_process_nuts.py` defaults to `--phantom inclusion`, while the rest of
+the synthetic pipeline uses `multicontrast`. `uq_summary.py` is the exception:
+it reads the sample archives directly and needs no post-processing.
 Every regularization parameter can be overridden on the command line
 (`--alpha_mu`, `--alpha_delta`, `--alpha_eps`, `--alpha_joint`, `--tv_beta`,
 `--lambda0`), so an operating point can be changed without editing the source.
@@ -175,8 +191,8 @@ takes seconds to a minute per scenario. Posterior sampling dominates:
 
 Each run draws 2 chains of 1000 samples, after 500 warmup iterations in the
 synthetic study and 200 in the experimental study. Sample archives are ~2.3 GB
-per run and are not tracked; posterior summaries are written alongside them as
-`posterior_mean_std.npz`.
+per run and are not tracked; post-processing reduces each to a small
+`posterior_mean_std.npz` summary stored alongside it.
 
 ## License
 
