@@ -140,6 +140,7 @@ for s in full sparse_angle sparse_step combined; do               # joint weight
     python synthetic_data/recon/tune_alpha_joint.py --scenario $s \
         --alpha_mu 100 --alpha_delta 316.2 --alpha_eps 56.23
 done
+python synthetic_data/recon/select_alpha.py --stage joint         # -> 29.55
 ```
 
 The channel weights are chosen to minimize relative error *averaged over the
@@ -152,8 +153,12 @@ values rather than the selected ones. Each sweep reports only its own
 condition's optimum, which is why they disagree with one another and with the
 paper; `select_alpha.py` combines the four grids and reports the weight with the
 lowest mean error per channel, together with how far it sits from each
-condition's own optimum (at most 1.5 %, 2.4 % and 3.9 % for μ, δ and ε). All
-selected values are fixed in `synthetic_data/recon/run_scenarios.py`.
+condition's own optimum (at most 1.5 %, 2.4 % and 3.9 % for μ, δ and ε). The
+coupling weight is chosen the same way by `--stage joint`, as the largest value
+that still improves every condition: it gives a mean 0.77 % lower summed error
+than α_J = 0, with the smallest gain 0.23 %, whereas 58.17 is better on full
+data but degrades both sparse conditions. All selected values are fixed in
+`synthetic_data/recon/run_scenarios.py`.
 
 **3. MAP reconstruction.** Reconstructs FBP, TV and JTV for all four conditions
 at the selected parameters, and draws the comparison figure.
