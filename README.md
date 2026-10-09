@@ -104,8 +104,18 @@ never inverts the operator that generated the data.
 
 ```bash
 python synthetic_data/create_data.py
-python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta
-python synthetic_data/recon/tune_alpha.py
+python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta   # smoothing beta, on full data
+for s in full sparse_angle sparse_step combined; do               # channel weights, per scenario
+    python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta --betas 3e-4 --scenario $s
+done
+for s in full combined; do                                        # amplitude weight lambda0
+    python synthetic_data/recon/sweep_tv_beta.py --stage lambda0 --scenario $s --tv_beta 3e-4 \
+        --alpha_mu 100 --alpha_delta 316.2 --alpha_eps 56.23
+done
+for s in full sparse_angle sparse_step combined; do               # joint weight, per scenario
+    python synthetic_data/recon/tune_alpha_joint.py --scenario $s \
+        --alpha_mu 100 --alpha_delta 316.2 --alpha_eps 56.23
+done
 python synthetic_data/recon/run_scenarios.py
 python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario full \
     --alpha_joint 0 --num_samples 1000 --warmup_steps 500        # TV
@@ -117,6 +127,15 @@ python synthetic_data/uq/uq_calibration.py
 python synthetic_data/recon/fig_map_comparison.py
 python synthetic_data/uq/fig_uq_comparison.py
 ```
+
+The channel weights are chosen to minimize relative error *averaged over the
+four acquisition conditions*, not on full data alone. The full-scan optima
+(`177.8 / 1778 / 100`) over-regularize the undersampled cases: `alpha_delta =
+1778` doubles the phase channel's error under combined undersampling. This is
+the tuning effect discussed in the paper, so `tune_alpha.py`, a convenience
+script that tunes on full data only, deliberately reports those full-scan
+values rather than the selected ones. All selected values are fixed in
+`synthetic_data/recon/run_scenarios.py`.
 
 **Experimental study.**
 
