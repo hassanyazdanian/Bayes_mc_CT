@@ -129,6 +129,7 @@ python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta   # smoothing be
 for s in full sparse_angle sparse_step combined; do               # channel weights, per scenario
     python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta --betas 3e-4 --scenario $s
 done
+python synthetic_data/recon/select_alpha.py                       # -> 100 / 316.2 / 56.23
 
 for s in full combined; do                                        # amplitude weight lambda0
     python synthetic_data/recon/sweep_tv_beta.py --stage lambda0 --scenario $s --tv_beta 3e-4 \
@@ -147,9 +148,12 @@ four acquisition conditions*, not on full data alone. The full-scan optima
 1778` doubles the phase channel’s error under combined undersampling. This is
 the tuning effect discussed in the paper, so `tune_alpha.py`, a convenience
 script that tunes on full data only, deliberately reports those full-scan
-values rather than the selected ones. Picking the averaged minimum from the four
-sweeps is a manual step. All selected values are fixed in
-`synthetic_data/recon/run_scenarios.py`.
+values rather than the selected ones. Each sweep reports only its own
+condition's optimum, which is why they disagree with one another and with the
+paper; `select_alpha.py` combines the four grids and reports the weight with the
+lowest mean error per channel, together with how far it sits from each
+condition's own optimum (at most 1.5 %, 2.4 % and 3.9 % for μ, δ and ε). All
+selected values are fixed in `synthetic_data/recon/run_scenarios.py`.
 
 **3. MAP reconstruction.** Reconstructs FBP, TV and JTV for all four conditions
 at the selected parameters, and draws the comparison figure.
