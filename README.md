@@ -157,7 +157,7 @@ prior per call, so repeat them for every scenario and prior to be shown. Note
 that `post_process_nuts.py` defaults to `--phantom inclusion`, while the rest of
 the synthetic pipeline uses `multicontrast`. `uq_summary.py` is the exception:
 it reads the sample archives directly and needs no post-processing.
-Every regularization parameter can be overridden on the command line
+Every prior parameter can be overridden on the command line
 (`--alpha_mu`, `--alpha_delta`, `--alpha_eps`, `--alpha_joint`, `--tv_beta`,
 `--lambda0`), so an operating point can be changed without editing the source.
 
