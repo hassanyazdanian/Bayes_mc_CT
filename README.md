@@ -98,46 +98,95 @@ Synthetic data is built by `synthetic_data/create_data.py`.
 
 ## Reproducing the results
 
-**Synthetic study.** Data are simulated at 512² with a bilinear projector and
-reconstructed at 256² with a nearest-neighbour projector, so the reconstruction
-never inverts the operator that generated the data.
+`--scenario` takes `full`, `sparse_angle`, `sparse_step` or `combined`
+throughout. Every prior parameter can be overridden on the command line
+(`--alpha_mu`, `--alpha_delta`, `--alpha_eps`, `--alpha_joint`, `--tv_beta`,
+`--lambda0`), so an operating point can be changed without editing the source.
+The sampling scripts default to 200 samples and 200 warmup iterations for quick
+runs; the commands below use the settings of the paper (see
+[Runtimes](#runtimes)).
+
+### Synthetic study
+
+Data are simulated at 512² with a bilinear projector and reconstructed at 256²
+with a nearest-neighbour projector, so the reconstruction never inverts the
+operator that generated the data.
+
+**1. Simulate the data.** Builds the phantom and writes `synthetic_data.h5`.
 
 ```bash
 python synthetic_data/create_data.py
+```
+
+**2. Select the regularization parameters.** The smoothing width β is fixed
+first on full data; the channel weights are then swept on every acquisition
+condition, the amplitude weight λ₀ on the two extremes, and the coupling weight
+on every condition.
+
+```bash
 python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta   # smoothing beta, on full data
+
 for s in full sparse_angle sparse_step combined; do               # channel weights, per scenario
     python synthetic_data/recon/sweep_tv_beta.py --stage alpha_beta --betas 3e-4 --scenario $s
 done
+
 for s in full combined; do                                        # amplitude weight lambda0
     python synthetic_data/recon/sweep_tv_beta.py --stage lambda0 --scenario $s --tv_beta 3e-4 \
         --alpha_mu 100 --alpha_delta 316.2 --alpha_eps 56.23
 done
+
 for s in full sparse_angle sparse_step combined; do               # joint weight, per scenario
     python synthetic_data/recon/tune_alpha_joint.py --scenario $s \
         --alpha_mu 100 --alpha_delta 316.2 --alpha_eps 56.23
 done
-python synthetic_data/recon/run_scenarios.py
-python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario full \
-    --alpha_joint 0 --num_samples 1000 --warmup_steps 500        # TV
-python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario full \
-    --alpha_joint 29.55 --num_samples 1000 --warmup_steps 500    # joint TV
-python synthetic_data/uq/post_process_nuts.py --phantom multicontrast --scenario full --prior tv
-python synthetic_data/uq/post_process_nuts.py --phantom multicontrast --scenario full --prior jtv
-python synthetic_data/uq/uq_calibration.py
-python synthetic_data/recon/fig_map_comparison.py
-python synthetic_data/uq/fig_uq_comparison.py
 ```
 
 The channel weights are chosen to minimize relative error *averaged over the
 four acquisition conditions*, not on full data alone. The full-scan optima
 (`177.8 / 1778 / 100`) over-regularize the undersampled cases: `alpha_delta =
-1778` doubles the phase channel's error under combined undersampling. This is
+1778` doubles the phase channel’s error under combined undersampling. This is
 the tuning effect discussed in the paper, so `tune_alpha.py`, a convenience
 script that tunes on full data only, deliberately reports those full-scan
-values rather than the selected ones. All selected values are fixed in
+values rather than the selected ones. Picking the averaged minimum from the four
+sweeps is a manual step. All selected values are fixed in
 `synthetic_data/recon/run_scenarios.py`.
 
-**Experimental study.**
+**3. MAP reconstruction.** Reconstructs FBP, TV and JTV for all four conditions
+at the selected parameters, and draws the comparison figure.
+
+```bash
+python synthetic_data/recon/run_scenarios.py
+python synthetic_data/recon/fig_map_comparison.py
+```
+
+**4. Posterior sampling.** One run per prior. Repeat with `--scenario` for the
+other three conditions; each writes a `nuts_samples.pickle` archive.
+
+```bash
+python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario full \
+    --alpha_joint 0 --num_samples 1000 --warmup_steps 500        # TV
+python synthetic_data/uq/nuts_synthetic.py --phantom multicontrast --scenario full \
+    --alpha_joint 29.55 --num_samples 1000 --warmup_steps 500    # joint TV
+```
+
+**5. Posterior summaries, calibration and figures.** Sampling writes only the
+archive. Post-processing reduces it to the `posterior_mean_std.npz` summary that
+the calibration table and the UQ figure read, one scenario and one prior per
+call, so repeat it for every scenario and prior to be shown. Note that
+`post_process_nuts.py` defaults to `--phantom inclusion`, while the rest of the
+synthetic pipeline uses `multicontrast`.
+
+```bash
+python synthetic_data/uq/post_process_nuts.py --phantom multicontrast --scenario full --prior tv
+python synthetic_data/uq/post_process_nuts.py --phantom multicontrast --scenario full --prior jtv
+python synthetic_data/uq/uq_calibration.py
+python synthetic_data/uq/fig_uq_comparison.py
+```
+
+### Experimental study
+
+**1. Select the regularization parameters.** β and λ₀ are fixed first, then the
+channel weights by held-out angles, then the coupling weight.
 
 ```bash
 python real_data/recon/sweep_tv_beta_lambda0.py --betas 0.01 0.03 0.1 \
@@ -147,40 +196,45 @@ python real_data/recon/cv_alpha_real_joint.py \
     --alpha_mu 5.62 --alpha_delta 10 --alpha_eps 1.78    # held-out error vs. joint weight
 python real_data/recon/tune_alpha_joint_ssim_sparse.py \
     --alpha_mu 5.62 --alpha_delta 10 --alpha_eps 1.78    # joint weight, by SSIM on sparse angles
-python real_data/recon/run_scenarios.py          # FBP / TV / JTV, four scenarios
-python real_data/uq/nuts_real.py --scenario full --alpha_joint 0 --num_samples 1000    # TV
-python real_data/uq/nuts_real.py --scenario full --num_samples 1000                    # joint TV
-python real_data/uq/post_process_real.py --scenario full --prior tv
-python real_data/uq/post_process_real.py --scenario full --prior jtv
-python real_data/uq/uq_summary.py
-python real_data/recon/fig_map_comparison.py
-python real_data/uq/fig_uq_comparison.py
 ```
 
-The first four commands reproduce the parameter selection. `cv_alpha_real.py`
-reports its held-out minimum at `alpha_delta = 17.78`; the paper uses
-`alpha_delta = 10`, the lower end of the range within 0.42 % of that minimum,
-because it samples better. The held-out error barely changes with
+`cv_alpha_real.py` reports its held-out minimum at `alpha_delta = 17.78`; the
+paper uses `alpha_delta = 10`, the lower end of the range within 0.42 % of that
+minimum, because it samples better. The held-out error barely changes with
 `alpha_joint`, so its value (1) comes from the SSIM sweep. All selected values
 are fixed in `real_data/recon/run_scenarios.py`.
 
-`--scenario` takes `full`, `sparse_angle`, `sparse_step` or `combined`. The
-sampling scripts default to 200 samples and 200 warmup iterations for quick
-runs; the commands above use the settings of the paper (see
-[Runtimes](#runtimes)).
+**2. MAP reconstruction.** FBP, TV and JTV across the four acquisition
+conditions, and the comparison figure.
 
-Sampling writes only the sample archive. `post_process_nuts.py` and
-`post_process_real.py` reduce each archive to the `posterior_mean_std.npz`
-summary that `uq_calibration.py` and both UQ figures read, one scenario and one
-prior per call, so repeat them for every scenario and prior to be shown. Note
-that `post_process_nuts.py` defaults to `--phantom inclusion`, while the rest of
-the synthetic pipeline uses `multicontrast`. `uq_summary.py` is the exception:
-it reads the sample archives directly and needs no post-processing.
-Every prior parameter can be overridden on the command line
-(`--alpha_mu`, `--alpha_delta`, `--alpha_eps`, `--alpha_joint`, `--tv_beta`,
-`--lambda0`), so an operating point can be changed without editing the source.
+```bash
+python real_data/recon/run_scenarios.py
+python real_data/recon/fig_map_comparison.py
+```
 
-**Forward-model validation.**
+**3. Posterior sampling.** One run per prior; repeat with `--scenario` for the
+other three conditions.
+
+```bash
+python real_data/uq/nuts_real.py --scenario full --alpha_joint 0 --num_samples 1000    # TV
+python real_data/uq/nuts_real.py --scenario full --num_samples 1000                    # joint TV
+```
+
+**4. Posterior summaries and figures.** `uq_summary.py` is the exception to the
+post-processing step: it reads the sample archives directly and needs no
+`.npz`. The UQ figure does need them.
+
+```bash
+python real_data/uq/post_process_real.py --scenario full --prior tv
+python real_data/uq/post_process_real.py --scenario full --prior jtv
+python real_data/uq/uq_summary.py
+python real_data/uq/fig_uq_comparison.py
+```
+
+### Forward-model validation
+
+Round-trips the measured data through retrieval, reconstruction and the assumed
+channel models, and compares against the measurement.
 
 ```bash
 python forward_validate/run_validate.py
