@@ -185,8 +185,10 @@ python synthetic_data/uq/fig_uq_comparison.py
 
 ### Experimental study
 
-**1. Select the regularization parameters.** β and λ₀ are fixed first, then the
-channel weights by held-out angles, then the coupling weight.
+**1. Select the regularization parameters.** β and λ₀ are chosen first, by a
+grid search on sparse-angle data (the sweep's default `--scenario`) scored by
+SSIM against the 361-view FBP; then the channel weights, by held-out angles;
+then the coupling weight.
 
 ```bash
 python real_data/recon/sweep_tv_beta_lambda0.py --betas 0.01 0.03 0.1 \
@@ -201,8 +203,10 @@ python real_data/recon/tune_alpha_joint_ssim_sparse.py \
 `cv_alpha_real.py` reports its held-out minimum at `alpha_delta = 17.78`; the
 paper uses `alpha_delta = 10`, the lower end of the range within 0.42 % of that
 minimum, because it samples better. The held-out error barely changes with
-`alpha_joint`, so its value (1) comes from the SSIM sweep. All selected values
-are fixed in `real_data/recon/run_scenarios.py`.
+`alpha_joint`, so its value (1) comes from the SSIM sweep. As in the synthetic
+study, reading a choice off these sweeps is a manual step: β and λ₀ are
+hard-coded in `cv_alpha_real.py` (`TV_BETA`, `LAMBDA0`) as well as in
+`real_data/recon/run_scenarios.py`, so changing either means editing both.
 
 **2. MAP reconstruction.** FBP, TV and JTV across the four acquisition
 conditions, and the comparison figure.
