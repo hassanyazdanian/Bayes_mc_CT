@@ -130,6 +130,22 @@ def make_reconstruction_mask(N: int, R: float = 0.98, device="cpu") -> torch.Ten
     return (X ** 2 + Y ** 2) <= (R ** 2)
 
 
+def support_bbox(N: int, R: float = 0.98) -> Tuple[slice, slice]:
+    """Row/column slices of the smallest box containing make_reconstruction_mask(N, R).
+
+    Reconstructions are stored on the full N x N grid with everything outside
+    the support set to zero. The real data uses a tight support (R=0.5), which
+    leaves three quarters of the frame empty, so the figures crop to this box.
+    Indexing an image with the returned pair crops it: img[bbox].
+    """
+    mask = make_reconstruction_mask(N, R).numpy()
+    rows = np.flatnonzero(mask.any(axis=1))
+    cols = np.flatnonzero(mask.any(axis=0))
+    if rows.size == 0 or cols.size == 0:
+        raise ValueError(f"empty support for N={N}, R={R}")
+    return slice(int(rows[0]), int(rows[-1]) + 1), slice(int(cols[0]), int(cols[-1]) + 1)
+
+
 def vec_to_img(v: torch.Tensor, mask: torch.Tensor, fill_value: float = 0.0) -> torch.Tensor:
     img = torch.full(mask.shape, fill_value, dtype=v.dtype, device=v.device)
     img[mask] = v

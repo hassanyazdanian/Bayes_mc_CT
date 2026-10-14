@@ -34,7 +34,15 @@ for _p in (COMMON_DIR, BASE_DIR, BASE_DIR / "recon", BASE_DIR / "uq"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-SCEN_DIR = BASE_DIR / "obs" / "scenarios" 
+import data_utils as du  # noqa: E402
+from scenario_utils import support_bbox  # noqa: E402
+
+# Everything outside the R=0.5 support is identically zero, which is three
+# quarters of the frame; crop the panels to it. Display ranges are still
+# computed on the full array, so they are unchanged by the crop.
+BBOX = support_bbox(du.N_RECON, du.SUPPORT_R)
+
+SCEN_DIR = BASE_DIR / "obs" / "scenarios"
 
 SCENARIOS: List[Tuple[str, str]] = [
     ("full", "(a) Full data"),
@@ -206,7 +214,7 @@ def MAP_comparison() -> None:
                             else prior_display_vmax(data, scen_key, ch, q=99.5))
 
                     ax.imshow(
-                        img_disp,
+                        img_disp[BBOX],
                         cmap="gray",
                         origin="lower",
                         vmin=0.0,
